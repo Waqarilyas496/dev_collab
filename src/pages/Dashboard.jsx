@@ -1,38 +1,17 @@
-import { useState } from 'react';
-import { auth } from '../firebase';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  limit,
+} from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import Sidebar from '../components/dashboard/Sidebar';
 import InviteModal from '../components/dashboard/InviteModal';
 import '../styles/dashboard.css';
-
-const stats = [
-  { icon: '📁', value: '12', label: 'Total Projects', change: '+2 this week' },
-  { icon: '👥', value: '8', label: 'Team Members', change: '+1 this month' },
-  { icon: '✅', value: '48', label: 'Tasks Done', change: '+12 this week' },
-  { icon: '🔥', value: '5', label: 'Active Sprints', change: '2 ending soon' },
-];
-
-const projects = [
-  { name: 'DevCollab Web App', meta: '8 members · Updated 2h ago', color: '#3b82f6', badge: 'active' },
-  { name: 'Mobile Dashboard', meta: '4 members · Updated 1d ago', color: '#a855f7', badge: 'review' },
-  { name: 'API Integration', meta: '3 members · Updated 3d ago', color: '#22c55e', badge: 'active' },
-  { name: 'Design System', meta: '2 members · Updated 5d ago', color: '#eab308', badge: 'planning' },
-];
-
-const activities = [
-  { initials: 'WI', color: '#3b82f6', text: <><span>Waqar Ilyas</span> pushed 3 commits to main branch</>, time: '2 min ago' },
-  { initials: 'SA', color: '#a855f7', text: <><span>Sara Ahmed</span> commented on Issue #42</>, time: '15 min ago' },
-  { initials: 'MK', color: '#22c55e', text: <><span>M. Khan</span> merged Pull Request #18</>, time: '1 hour ago' },
-  { initials: 'AR', color: '#eab308', text: <><span>Ali Raza</span> created new branch feature/auth</>, time: '3 hours ago' },
-  { initials: 'FN', color: '#ef4444', text: <><span>Fatima N.</span> closed Issue #39</>, time: '5 hours ago' },
-];
-
-const members = [
-  { initials: 'WI', name: 'Waqar Ilyas', role: 'Lead Developer', color: '#3b82f6', status: 'online' },
-  { initials: 'SA', name: 'Sara Ahmed', role: 'UI Designer', color: '#a855f7', status: 'online' },
-  { initials: 'MK', name: 'M. Khan', role: 'Backend Dev', color: '#22c55e', status: 'away' },
-  { initials: 'AR', name: 'Ali Raza', role: 'Frontend Dev', color: '#eab308', status: 'offline' },
-];
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -40,16 +19,98 @@ const fadeUp = {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [activities, setActivities] = useState([]);
+
+  // Load real projects
+  useEffect(() => {
+    const q = query(
+      collection(db, 'projects'),
+      orderBy('createdAt', 'desc'),
+      limit(4)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setProjects(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  // Load real members
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'users'), (snap) => {
+      setMembers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  // Load real tasks
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'tasks'), (snap) => {
+      setTasks(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  // Load recent activities
+  useEffect(() => {
+    const q = query(
+      collection(db, 'projects'),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const data = snap.docs.map((d) => ({
+        id: d.id,
+        type: 'project',
+        ...d.data(),
+      }));
+      setActivities(data);
+    });
+    return () => unsub();
+  }, []);
+
+  // Real Stats
+  const totalProjects = projects.length;
+  const totalMembers = members.length;
+  const completedTasks = tasks.filter((t) => t.completed).length;
+  const pendingTasks = tasks.filter((t) => !t.completed).length;
+
+  const getColor = (uid) => {
+    const colors = ['#3b82f6', '#a855f7', '#22c55e', '#eab308', '#ef4444', '#06b6d4'];
+    return colors[uid ? uid.charCodeAt(0) % colors.length : 0];
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.split(' ').map((p) => p[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getBadgeClass = (index) => {
+    const badges = ['active', 'review', 'planning'];
+    return badges[index % badges.length];
+  };
+
+  const timeAgo = (date) => {
+    if (!date) return '';
+    const seconds = Math.floor((new Date() - date.toDate()) / 1000);
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    return `${Math.floor(seconds / 86400)} days ago`;
+  };
 
   return (
     <div className="dashboard-wrapper">
       <Sidebar active="Dashboard" />
 
-      {/* Invite Modal */}
       <InviteModal
         isOpen={inviteOpen}
         onClose={() => setInviteOpen(false)}
+        members={members}
       />
 
       <main className="dashboard-main">
@@ -62,12 +123,15 @@ export default function Dashboard() {
         >
           <div>
             <div className="topbar-title">
-  Good morning, {auth.currentUser?.displayName?.split(' ')[0] || 'there'} 👋
-</div>
+              Good morning, {auth.currentUser?.displayName?.split(' ')[0] || 'there'} 👋
+            </div>
             <div className="topbar-subtitle">Here's what's happening today</div>
           </div>
           <div className="topbar-right">
-            <button className="btn-new-project">
+            <button
+              className="btn-new-project"
+              onClick={() => navigate('/projects')}
+            >
               + New Project
             </button>
           </div>
@@ -75,7 +139,32 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         <div className="stats-grid">
-          {stats.map((stat, i) => (
+          {[
+            {
+              icon: '📁',
+              value: totalProjects,
+              label: 'Total Projects',
+              change: 'All projects',
+            },
+            {
+              icon: '👥',
+              value: totalMembers,
+              label: 'Team Members',
+              change: 'Registered users',
+            },
+            {
+              icon: '✅',
+              value: completedTasks,
+              label: 'Tasks Done',
+              change: `${pendingTasks} pending`,
+            },
+            {
+              icon: '🔥',
+              value: pendingTasks,
+              label: 'Active Tasks',
+              change: 'In progress',
+            },
+          ].map((stat, i) => (
             <motion.div
               key={i}
               className="stat-card"
@@ -99,39 +188,77 @@ export default function Dashboard() {
             {...fadeUp}
             transition={{ duration: 0.4, delay: 0.2 }}
           >
+            {/* Recent Projects */}
             <div className="section-header">
               <div className="section-title">Recent Projects</div>
-              <span className="section-link">View all →</span>
+              <span
+                className="section-link"
+                onClick={() => navigate('/projects')}
+                style={{ cursor: 'pointer' }}
+              >
+                View all →
+              </span>
             </div>
 
-            {projects.map((p, i) => (
-              <div className="project-item" key={i}>
-                <div className="project-dot" style={{ background: p.color }} />
-                <div className="project-info">
-                  <div className="project-name">{p.name}</div>
-                  <div className="project-meta">{p.meta}</div>
-                </div>
-                <span className={`project-badge badge-${p.badge}`}>
-                  {p.badge}
-                </span>
+            {projects.length === 0 ? (
+              <div style={{
+                color: '#475569',
+                fontSize: '13px',
+                padding: '1rem 0',
+              }}>
+                No projects yet 🚀
               </div>
-            ))}
+            ) : (
+              projects.map((p, i) => (
+                <div className="project-item" key={p.id}>
+                  <div
+                    className="project-dot"
+                    style={{ background: p.color || getColor(p.ownerUid) }}
+                  />
+                  <div className="project-info">
+                    <div className="project-name">{p.title}</div>
+                    <div className="project-meta">
+                      by {p.ownerName} · {timeAgo(p.createdAt)}
+                    </div>
+                  </div>
+                  <span className={`project-badge badge-${getBadgeClass(i)}`}>
+                    {p.category}
+                  </span>
+                </div>
+              ))
+            )}
 
-            {/* Activity Feed */}
+            {/* Recent Activity */}
             <div className="section-header" style={{ marginTop: '1.5rem' }}>
               <div className="section-title">Recent Activity</div>
             </div>
-            {activities.map((a, i) => (
-              <div className="activity-item" key={i}>
-                <div className="activity-avatar" style={{ background: a.color }}>
-                  {a.initials}
-                </div>
-                <div>
-                  <div className="activity-text">{a.text}</div>
-                  <div className="activity-time">{a.time}</div>
-                </div>
+
+            {activities.length === 0 ? (
+              <div style={{
+                color: '#475569',
+                fontSize: '13px',
+                padding: '1rem 0',
+              }}>
+                No activity yet
               </div>
-            ))}
+            ) : (
+              activities.map((a) => (
+                <div className="activity-item" key={a.id}>
+                  <div
+                    className="activity-avatar"
+                    style={{ background: getColor(a.ownerUid) }}
+                  >
+                    {getInitials(a.ownerName)}
+                  </div>
+                  <div>
+                    <div className="activity-text">
+                      <span>{a.ownerName}</span> added project "{a.title}"
+                    </div>
+                    <div className="activity-time">{timeAgo(a.createdAt)}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </motion.div>
 
           {/* Team Members */}
@@ -142,7 +269,6 @@ export default function Dashboard() {
           >
             <div className="section-header">
               <div className="section-title">Team Members</div>
-              {/* Invite Button */}
               <span
                 className="section-link"
                 onClick={() => setInviteOpen(true)}
@@ -152,18 +278,33 @@ export default function Dashboard() {
               </span>
             </div>
 
-            {members.map((m, i) => (
-              <div className="member-item" key={i}>
-                <div className="member-avatar" style={{ background: m.color }}>
-                  {m.initials}
-                </div>
-                <div>
-                  <div className="member-name">{m.name}</div>
-                  <div className="member-role">{m.role}</div>
-                </div>
-                <div className={`member-status status-${m.status}`} />
+            {members.length === 0 ? (
+              <div style={{
+                color: '#475569',
+                fontSize: '13px',
+                padding: '1rem 0',
+              }}>
+                No members yet
               </div>
-            ))}
+            ) : (
+              members.map((m) => (
+                <div className="member-item" key={m.uid}>
+                  <div
+                    className="member-avatar"
+                    style={{ background: getColor(m.uid) }}
+                  >
+                    {getInitials(`${m.firstName} ${m.lastName}`)}
+                  </div>
+                  <div>
+                    <div className="member-name">
+                      {m.firstName} {m.lastName}
+                    </div>
+                    <div className="member-role">{m.role || 'Member'}</div>
+                  </div>
+                  <div className="member-status status-online" />
+                </div>
+              ))
+            )}
           </motion.div>
 
         </div>

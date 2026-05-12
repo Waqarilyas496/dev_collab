@@ -9,6 +9,7 @@ const navItems = [
   { icon: '✅', label: 'Tasks', path: '/tasks' },
   { icon: '💬', label: 'Messages', path: '/messages' },
   { icon: '📊', label: 'Analytics', path: '/analytics' },
+  { icon: '📨', label: 'Invitations', path: '/invitations' },
 ];
 
 const bottomItems = [

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaGoogle, FaGithub } from 'react-icons/fa';
+import { FaGoogle } from 'react-icons/fa';
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -33,7 +33,6 @@ export default function SignIn() {
     return newErrors;
   };
 
-  // Email/Password Sign In
   const handleSubmit = async () => {
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
@@ -51,7 +50,6 @@ export default function SignIn() {
     setLoading(false);
   };
 
-  // Google Sign In
   const handleGoogle = async () => {
     setLoading(true);
     setGlobalError('');
@@ -81,14 +79,7 @@ export default function SignIn() {
           whileTap={{ scale: 0.97 }}
           onClick={handleGoogle}
         >
-          <FaGoogle size={14} color="#ea4335" /> Google
-        </motion.button>
-        <motion.button
-          className="btn-social"
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-        >
-          <FaGithub size={14} /> GitHub
+          <FaGoogle size={14} color="#ea4335" /> Continue with Google
         </motion.button>
       </div>
 
