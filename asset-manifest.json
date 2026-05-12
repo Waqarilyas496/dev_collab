@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/dev_collab/static/css/main.3e0a20e1.css",
+    "main.js": "/dev_collab/static/js/main.687eefb6.js",
+    "index.html": "/dev_collab/index.html",
+    "main.3e0a20e1.css.map": "/dev_collab/static/css/main.3e0a20e1.css.map",
+    "main.687eefb6.js.map": "/dev_collab/static/js/main.687eefb6.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.3e0a20e1.css",
+    "static/js/main.687eefb6.js"
+  ]
+}
